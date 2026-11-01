@@ -111,10 +111,6 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    buildFeatures {
-        compose true
-    }
-
     externalNativeBuild {
         ndkBuild {
             path "src/main/cpp/Android.mk"
@@ -151,6 +147,13 @@ android {
 
     buildFeatures {
         buildConfig true
+        compose true
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
     }
 }
 

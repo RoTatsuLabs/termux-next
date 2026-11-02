@@ -28,6 +28,8 @@ import android.widget.Toast;
 
 import com.termux.R;
 import com.termux.app.api.file.FileReceiverActivity;
+import com.termux.app.terminal.DrawerSessionNavigator;
+import com.termux.app.terminal.SessionNavigator;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
@@ -132,6 +134,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * The client for the {@link #mExtraKeysView}.
      */
     TermuxTerminalExtraKeys mTermuxTerminalExtraKeys;
+
+    /**
+     * Controls the sessions drawer, so that code does not depend on the view that shows it.
+     */
+    private SessionNavigator mSessionNavigator;
 
     /**
      * The termux sessions list controller.
@@ -341,7 +348,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         removeTermuxActivityRootViewGlobalLayoutListener();
 
         unregisterTermuxActivityBroadcastReceiver();
-        getDrawer().closeDrawers();
+        getSessionNavigator().close();
     }
 
     @Override
@@ -585,7 +592,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private void setToggleKeyboardView() {
         findViewById(R.id.toggle_keyboard_button).setOnClickListener(v -> {
             mTermuxTerminalViewClient.onToggleSoftKeyboardRequest();
-            getDrawer().closeDrawers();
+            getSessionNavigator().close();
         });
 
         findViewById(R.id.toggle_keyboard_button).setOnLongClickListener(v -> {
@@ -601,8 +608,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     @SuppressLint("RtlHardcoded")
     @Override
     public void onBackPressed() {
-        if (getDrawer().isDrawerOpen(Gravity.LEFT)) {
-            getDrawer().closeDrawers();
+        if (getSessionNavigator().isOpen()) {
+            getSessionNavigator().close();
         } else {
             finishActivityIfNotFinishing();
         }
@@ -835,6 +842,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     public DrawerLayout getDrawer() {
         return (DrawerLayout) findViewById(R.id.drawer_layout);
+    }
+
+    public SessionNavigator getSessionNavigator() {
+        if (mSessionNavigator == null) mSessionNavigator = new DrawerSessionNavigator(getDrawer());
+        return mSessionNavigator;
     }
 
 

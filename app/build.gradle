@@ -91,6 +91,17 @@ android {
             storePassword 'xrj45yWGLbsO7W0v'
             keyPassword 'xrj45yWGLbsO7W0v'
         }
+
+        // The release workflow passes its keystore as RELEASE_* Gradle properties.
+        // Without them the release build stays unsigned, as before.
+        if (project.hasProperty("RELEASE_STORE_FILE")) {
+            release {
+                storeFile file(project.property("RELEASE_STORE_FILE"))
+                storePassword project.property("RELEASE_STORE_PASSWORD")
+                keyAlias project.property("RELEASE_KEY_ALIAS")
+                keyPassword project.property("RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -98,6 +109,7 @@ android {
             minifyEnabled true
             shrinkResources false // Reproducible builds
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (project.hasProperty("RELEASE_STORE_FILE")) signingConfig signingConfigs.release
         }
 
         debug {

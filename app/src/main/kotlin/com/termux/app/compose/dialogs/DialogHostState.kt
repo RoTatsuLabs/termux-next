@@ -11,6 +11,19 @@ fun interface UrlAction {
     fun onUrl(url: String)
 }
 
+/** Called with the id of an item picked in the context menu. */
+fun interface IdAction {
+    fun onId(id: Int)
+}
+
+/** One row of the context menu. [checked] is null for a plain row, and set for a row with a switch. */
+class ContextMenuEntry(
+    val id: Int,
+    val label: String,
+    val enabled: Boolean,
+    val checked: Boolean?
+)
+
 internal sealed interface DialogRequest
 
 internal class TextInputRequest(
@@ -41,6 +54,12 @@ internal class UrlsRequest(
     val onOpen: UrlAction
 ) : DialogRequest
 
+internal class ContextMenuRequest(
+    val entries: List<ContextMenuEntry>,
+    val onSelect: IdAction,
+    val onClosed: Runnable
+) : DialogRequest
+
 /**
  * Dialogs requested by the activity and its clients. One dialog is shown at a time, a new request
  * replaces the current one. A resource id of 0 means the text is not used.
@@ -59,12 +78,12 @@ class DialogHostState {
         @StringRes neutral: Int,
         onNeutral: TextInputDialogUtils.TextSetListener?
     ) {
-        request = TextInputRequest(title, initialText, positive, onPositive, neutral, onNeutral)
+        replace(TextInputRequest(title, initialText, positive, onPositive, neutral, onNeutral))
     }
 
     /** A yes or no question. */
     fun showConfirm(@StringRes message: Int, onConfirm: Runnable) {
-        request = ConfirmRequest(message, onConfirm)
+        replace(ConfirmRequest(message, onConfirm))
     }
 
     /** A message with a confirm button, which defaults to OK, and an optional cancel button. */
@@ -75,15 +94,34 @@ class DialogHostState {
         onPositive: Runnable?,
         showCancel: Boolean
     ) {
-        request = MessageRequest(title, message, positive, onPositive, showCancel)
+        replace(MessageRequest(title, message, positive, onPositive, showCancel))
     }
 
     /** URLs to pick from. A tap calls [onCopy], a long press calls [onOpen]. */
     fun showUrls(urls: List<String>, onCopy: UrlAction, onOpen: UrlAction) {
-        request = UrlsRequest(urls, onCopy, onOpen)
+        replace(UrlsRequest(urls, onCopy, onOpen))
+    }
+
+    /**
+     * A list of actions. [onSelect] runs first for the picked item, then the menu closes. [onClosed]
+     * always runs once when the menu is gone, whether it was picked from, dismissed or replaced.
+     */
+    fun showContextMenu(entries: List<ContextMenuEntry>, onSelect: IdAction, onClosed: Runnable) {
+        replace(ContextMenuRequest(entries, onSelect, onClosed))
     }
 
     internal fun dismiss() {
-        request = null
+        replace(null)
+    }
+
+    /** Closes [expected] unless something else was shown in the meantime. */
+    internal fun dismiss(expected: DialogRequest) {
+        if (request === expected) replace(null)
+    }
+
+    private fun replace(next: DialogRequest?) {
+        val previous = request
+        request = next
+        if (previous is ContextMenuRequest && previous !== next) previous.onClosed.run()
     }
 }

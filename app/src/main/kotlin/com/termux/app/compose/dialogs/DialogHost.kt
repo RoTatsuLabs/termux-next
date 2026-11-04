@@ -3,20 +3,30 @@
 package com.termux.app.compose.dialogs
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,8 +34,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -56,6 +68,7 @@ private fun DialogHost(state: DialogHostState) {
         is ConfirmRequest -> ConfirmDialog(request, dismiss)
         is MessageRequest -> MessageDialog(request, dismiss)
         is UrlsRequest -> UrlsDialog(request, dismiss)
+        is ContextMenuRequest -> ContextMenuSheet(request, state)
     }
 }
 
@@ -193,4 +206,39 @@ private fun UrlsDialog(request: UrlsRequest, onDismiss: () -> Unit) {
             TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ContextMenuSheet(request: ContextMenuRequest, state: DialogHostState) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = { state.dismiss(request) },
+        sheetState = sheetState
+    ) {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            request.entries.forEach { entry ->
+                val checked = entry.checked
+                val trailing: (@Composable () -> Unit)? = if (checked != null) {
+                    { Switch(checked = checked, onCheckedChange = null) }
+                } else {
+                    null
+                }
+
+                ListItem(
+                    headlineContent = { Text(entry.label) },
+                    trailingContent = trailing,
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier
+                        .alpha(if (entry.enabled) 1f else 0.38f)
+                        .clickable(enabled = entry.enabled) {
+                            // The action runs before the menu closes, as it needs state the closing clears.
+                            request.onSelect.onId(entry.id)
+                            state.dismiss(request)
+                        }
+                )
+            }
+        }
+    }
 }

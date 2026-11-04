@@ -1,7 +1,6 @@
 package com.termux.app;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -49,7 +48,8 @@ import com.termux.app.terminal.SessionsDrawerActions;
 import com.termux.app.terminal.io.TerminalToolbarViewPager;
 import com.termux.app.terminal.TermuxTerminalViewClient;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
-import com.termux.shared.termux.interact.TextInputDialogUtils;
+import com.termux.app.compose.dialogs.DialogHostState;
+import com.termux.app.compose.dialogs.DialogHostUi;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxUtils;
 import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
@@ -147,6 +147,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * The sessions shown in the sessions drawer.
      */
     SessionsDrawerState mSessionsDrawerState;
+
+    /**
+     * The dialogs shown by the activity and its clients.
+     */
+    private final DialogHostState mDialogHostState = new DialogHostState();
 
     /**
      * The {@link TermuxActivity} broadcast receiver for various things like terminal style configuration changes.
@@ -254,6 +259,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         setTermuxTerminalViewAndClients();
 
         setTerminalToolbarView(savedInstanceState);
+
+        DialogHostUi.setDialogHostContent(findViewById(R.id.dialog_host), mDialogHostState);
 
         registerForContextMenu(mTerminalView);
 
@@ -529,10 +536,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
             @Override
             public void onNewSessionLongClick() {
-                TextInputDialogUtils.textInput(TermuxActivity.this, R.string.title_create_named_session, null,
+                mDialogHostState.showTextInput(R.string.title_create_named_session, null,
                     R.string.action_create_named_session_confirm, text -> mTermuxTerminalSessionActivityClient.addNewSession(false, text),
-                    R.string.action_new_session_failsafe, text -> mTermuxTerminalSessionActivityClient.addNewSession(true, text),
-                    -1, null, null);
+                    R.string.action_new_session_failsafe, text -> mTermuxTerminalSessionActivityClient.addNewSession(true, text));
             }
 
             @Override
@@ -738,15 +744,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private void showKillSessionDialog(TerminalSession session) {
         if (session == null) return;
 
-        final AlertDialog.Builder b = new AlertDialog.Builder(this);
-        b.setIcon(android.R.drawable.ic_dialog_alert);
-        b.setMessage(R.string.title_confirm_kill_process);
-        b.setPositiveButton(android.R.string.yes, (dialog, id) -> {
-            dialog.dismiss();
-            session.finishIfRunning();
-        });
-        b.setNegativeButton(android.R.string.no, null);
-        b.show();
+        mDialogHostState.showConfirm(R.string.title_confirm_kill_process, session::finishIfRunning);
     }
 
     private void onResetTerminalSession(TerminalSession session) {
@@ -767,10 +765,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         } catch (ActivityNotFoundException | IllegalArgumentException e) {
             // The startActivity() call is not documented to throw IllegalArgumentException.
             // However, crash reporting shows that it sometimes does, so catch it here.
-            new AlertDialog.Builder(this).setMessage(getString(R.string.error_styling_not_installed))
-                .setPositiveButton(R.string.action_styling_install,
-                    (dialog, which) -> ActivityUtils.startActivity(this, new Intent(Intent.ACTION_VIEW, Uri.parse(TermuxConstants.TERMUX_STYLING_FDROID_PACKAGE_URL))))
-                .setNegativeButton(android.R.string.cancel, null).show();
+            mDialogHostState.showMessage(0, R.string.error_styling_not_installed, R.string.action_styling_install,
+                () -> ActivityUtils.startActivity(this, new Intent(Intent.ACTION_VIEW, Uri.parse(TermuxConstants.TERMUX_STYLING_FDROID_PACKAGE_URL))),
+                true);
         }
     }
     private void toggleKeepScreenOn() {
@@ -888,6 +885,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     public void termuxSessionListNotifyUpdated() {
         if (mSessionsDrawerState != null && mTermuxService != null)
             mSessionsDrawerState.update(mTermuxService.getTermuxSessions());
+    }
+
+    public DialogHostState getDialogHostState() {
+        return mDialogHostState;
     }
 
     public void setSessionsDrawerCurrentSession(int index) {

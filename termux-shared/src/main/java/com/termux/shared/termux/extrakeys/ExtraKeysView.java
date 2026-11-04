@@ -129,6 +129,11 @@ public final class ExtraKeysView extends GridLayout {
 
 
 
+    /** Defines the gap in dp around each key. */
+    public static final int KEY_MARGIN_DP = 2;
+    /** Defines the corner radius in dp of each key. */
+    public static final int KEY_CORNER_RADIUS_DP = 10;
+
     /** Defines the minimum allowed duration in milliseconds for {@link #mLongPressTimeout}. */
     public static final int MIN_LONG_PRESS_DURATION = 200;
     /** Defines the maximum allowed duration in milliseconds for {@link #mLongPressTimeout}. */
@@ -413,6 +418,7 @@ public final class ExtraKeysView extends GridLayout {
                 button.setTextColor(mButtonTextColor);
                 button.setAllCaps(mButtonTextAllCaps);
                 button.setPadding(0, 0, 0, 0);
+                button.setCornerRadius(dpToPx(KEY_CORNER_RADIUS_DP));
 
                 button.setOnClickListener(view -> {
                     performExtraKeyButtonHapticFeedback(view, buttonInfo, button);
@@ -476,7 +482,8 @@ public final class ExtraKeysView extends GridLayout {
                 } else {
                     param.height = 0;
                 }
-                param.setMargins(0, 0, 0, 0);
+                int margin = dpToPx(KEY_MARGIN_DP);
+                param.setMargins(margin, margin, margin, margin);
                 param.columnSpec = GridLayout.spec(col, GridLayout.FILL, 1.f);
                 param.rowSpec = GridLayout.spec(row, GridLayout.FILL, 1.f);
                 button.setLayoutParams(param);
@@ -607,6 +614,7 @@ public final class ExtraKeysView extends GridLayout {
         button.setWidth(width);
         button.setHeight(height);
         button.setBackgroundColor(mButtonActiveBackgroundColor);
+        button.setCornerRadius(dpToPx(KEY_CORNER_RADIUS_DP));
         mPopupWindow = new PopupWindow(this);
         mPopupWindow.setWidth(LayoutParams.WRAP_CONTENT);
         mPopupWindow.setHeight(LayoutParams.WRAP_CONTENT);
@@ -614,6 +622,10 @@ public final class ExtraKeysView extends GridLayout {
         mPopupWindow.setOutsideTouchable(true);
         mPopupWindow.setFocusable(false);
         mPopupWindow.showAsDropDown(view, 0, -2 * height);
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 
     public void dismissPopup() {

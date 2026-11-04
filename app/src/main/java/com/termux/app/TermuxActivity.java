@@ -41,6 +41,7 @@ import com.termux.app.activities.HelpActivity;
 import com.termux.app.activities.SettingsActivity;
 import com.termux.shared.termux.crash.TermuxCrashUtils;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
+import com.termux.app.compose.sessions.SessionTabsUi;
 import com.termux.app.compose.sessions.SessionsDrawerState;
 import com.termux.app.compose.sessions.SessionsDrawerUi;
 import com.termux.app.terminal.SessionsDrawerActions;
@@ -514,7 +515,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mSessionsDrawerState.update(mTermuxService.getTermuxSessions());
 
         ComposeView sessionsDrawerView = findViewById(R.id.left_drawer);
-        SessionsDrawerUi.setSessionsDrawerContent(sessionsDrawerView, mSessionsDrawerState, new SessionsDrawerActions() {
+        SessionsDrawerActions sessionsDrawerActions = new SessionsDrawerActions() {
             @Override
             public void onSessionClick(int index) {
                 TerminalSession session = getTerminalSessionAt(index);
@@ -557,7 +558,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             public void onToggleKeyboardLongClick() {
                 toggleTerminalToolbar();
             }
-        });
+        };
+
+        SessionsDrawerUi.setSessionsDrawerContent(sessionsDrawerView, mSessionsDrawerState, sessionsDrawerActions);
+        SessionTabsUi.setSessionTabsContent(findViewById(R.id.session_tabs), mSessionsDrawerState, sessionsDrawerActions);
     }
 
     @Nullable

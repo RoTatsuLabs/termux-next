@@ -16,10 +16,18 @@
         android:layout_marginVertical="0dp"
         android:orientation="vertical">
 
+        <!-- Switches between sessions. It has no height while there is only one session. -->
+        <androidx.compose.ui.platform.ComposeView
+            android:id="@+id/session_tabs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:descendantFocusability="blocksDescendants" />
+
         <androidx.drawerlayout.widget.DrawerLayout
             android:id="@+id/drawer_layout"
             android:layout_width="match_parent"
-            android:layout_alignParentTop="true"
+            android:layout_below="@id/session_tabs"
             android:layout_above="@+id/terminal_toolbar_view_pager"
             android:layout_height="match_parent">
 

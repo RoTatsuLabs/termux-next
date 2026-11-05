@@ -419,6 +419,8 @@ public final class ExtraKeysView extends GridLayout {
                 button.setAllCaps(mButtonTextAllCaps);
                 button.setPadding(0, 0, 0, 0);
                 button.setCornerRadius(dpToPx(KEY_CORNER_RADIUS_DP));
+                // Keys otherwise only get a background once they have been pressed.
+                button.setBackgroundColor(mButtonBackgroundColor);
 
                 button.setOnClickListener(view -> {
                     performExtraKeyButtonHapticFeedback(view, buttonInfo, button);

@@ -129,6 +129,6 @@ private fun SessionTab(item: SessionItem, selected: Boolean, onClick: () -> Unit
             .background(container)
             .semantics { this.selected = selected }
             .combinedClickable(role = Role.Tab, onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
     )
 }

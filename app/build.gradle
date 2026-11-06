@@ -17,7 +17,11 @@ ext {
 android {
     namespace "com.termux"
 
-    compileSdkVersion project.properties.compileSdkVersion.toInteger()
+    compileSdk {
+        version = release(project.properties.compileSdkVersion.toInteger()) {
+            it.minorApiLevel = project.properties.compileSdkMinorApiLevel.toInteger()
+        }
+    }
     ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
     def appVersionName = System.getenv("TERMUX_APP_VERSION_NAME") ?: ""
     def apkVersionTag = System.getenv("TERMUX_APK_VERSION_TAG") ?: ""
@@ -33,8 +37,8 @@ android {
         implementation "com.google.android.material:material:1.12.0"
         implementation "com.google.guava:guava:24.1-jre"
         implementation platform("androidx.compose:compose-bom:$composeBomVersion")
-        implementation "androidx.compose.material3:material3"
-        implementation "androidx.compose.ui:ui"
+        implementation "androidx.compose.material3:material3:$composeMaterial3Version"
+        implementation "androidx.compose.ui:ui:$composeUiVersion"
         implementation "androidx.compose.material:material-icons-core"
         implementation "androidx.activity:activity-compose:1.8.2"
         implementation "io.noties.markwon:core:$markwonVersion"

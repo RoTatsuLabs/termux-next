@@ -15,14 +15,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -34,16 +41,9 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.termux.R
 import com.termux.app.compose.theme.TermuxTheme
@@ -58,6 +58,7 @@ fun setSessionsDrawerContent(view: ComposeView, state: SessionsDrawerState, acti
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SessionsDrawer(state: SessionsDrawerState, actions: SessionsDrawerActions) {
     val listState = rememberLazyListState()
@@ -76,9 +77,10 @@ private fun SessionsDrawer(state: SessionsDrawerState, actions: SessionsDrawerAc
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(Modifier.fillMaxSize()) {
-            IconButton(
+            FilledTonalIconButton(
                 onClick = { actions.onOpenSettings() },
-                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                shapes = IconButtonDefaults.shapes(),
+                modifier = Modifier.padding(start = 12.dp, top = 12.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_settings),
@@ -89,12 +91,15 @@ private fun SessionsDrawer(state: SessionsDrawerState, actions: SessionsDrawerAc
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 state = listState,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
             ) {
                 itemsIndexed(state.items) { index, item ->
                     SessionRow(
                         item = item,
                         selected = index == state.currentIndex,
+                        index = index,
+                        count = state.items.size,
                         onClick = { actions.onSessionClick(index) },
                         onLongClick = { actions.onSessionLongClick(index) }
                     )
@@ -126,50 +131,68 @@ private fun SessionsDrawer(state: SessionsDrawerState, actions: SessionsDrawerAc
     }
 }
 
-private fun SessionItem.label(): AnnotatedString {
-    if (!hasSession) return AnnotatedString("null session")
-
-    return buildAnnotatedString {
-        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-            append("[$number] $name")
-        }
-        if (title.isNotEmpty()) {
-            if (name.isNotEmpty()) append("\n")
-            withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                append(title)
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SessionRow(item: SessionItem, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
-    val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-    val defaultColor = if (selected) {
-        MaterialTheme.colorScheme.onSecondaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+private fun SessionRow(
+    item: SessionItem,
+    selected: Boolean,
+    index: Int,
+    count: Int,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
     // A finished session is struck through, and red when it did not exit cleanly.
-    val color = if (item.running || item.exitStatus == 0) defaultColor else MaterialTheme.colorScheme.error
+    val color = if (item.running || item.exitStatus == 0) Color.Unspecified else MaterialTheme.colorScheme.error
+    val decoration = if (item.running) null else TextDecoration.LineThrough
 
-    Text(
-        text = item.label(),
-        color = color,
-        textDecoration = if (item.running) null else TextDecoration.LineThrough,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp)
-            .clip(MaterialTheme.shapes.large)
-            .background(container)
-            .semantics { this.selected = selected }
-            .combinedClickable(role = Role.Button, onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-    )
+    val headline = when {
+        !item.hasSession -> "null session"
+        item.name.isNotEmpty() -> item.name
+        else -> item.title
+    }
+    val supporting = if (item.hasSession && item.name.isNotEmpty() && item.title.isNotEmpty()) item.title else null
+
+    SegmentedListItem(
+        checked = selected,
+        onCheckedChange = { onClick() },
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        onLongClick = onLongClick,
+        leadingContent = { NumberBadge(item.number) },
+        supportingContent = if (supporting != null) {
+            {
+                Text(
+                    text = supporting,
+                    color = color,
+                    fontStyle = FontStyle.Italic,
+                    textDecoration = decoration
+                )
+            }
+        } else {
+            null
+        }
+    ) {
+        Text(text = headline, color = color, textDecoration = decoration)
+    }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun NumberBadge(number: Int) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .background(MaterialTheme.colorScheme.primaryContainer, MaterialShapes.Cookie9Sided.toShape()),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "$number",
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            style = MaterialTheme.typography.labelLargeEmphasized
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DrawerButton(
     @StringRes text: Int,
@@ -181,22 +204,22 @@ private fun DrawerButton(
     val container = if (filled) {
         MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.surfaceContainerHighest
+        MaterialTheme.colorScheme.secondaryContainer
     }
-    val content = if (filled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val content = if (filled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
 
     Box(
         modifier = modifier
-            .clip(MaterialTheme.shapes.large)
+            .clip(MaterialTheme.shapes.extraLargeIncreased)
             .background(container)
             .combinedClickable(role = Role.Button, onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 8.dp, vertical = 14.dp),
+            .padding(horizontal = 8.dp, vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = stringResource(text),
             color = content,
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelLargeEmphasized,
             textAlign = TextAlign.Center
         )
     }

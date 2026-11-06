@@ -16,8 +16,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,6 +53,7 @@ fun setSessionTabsContent(view: ComposeView, state: SessionsDrawerState, actions
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SessionTabs(state: SessionsDrawerState, actions: SessionsDrawerActions) {
     if (state.items.size < 2) return
@@ -83,7 +86,11 @@ private fun SessionTabs(state: SessionsDrawerState, actions: SessionsDrawerActio
                 }
             }
 
-            IconButton(onClick = { actions.onNewSession() }) {
+            FilledTonalIconButton(
+                onClick = { actions.onNewSession() },
+                shapes = IconButtonDefaults.shapes(),
+                modifier = Modifier.padding(end = 8.dp)
+            ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
                     contentDescription = stringResource(R.string.action_new_session)
@@ -100,7 +107,7 @@ private fun SessionItem.tabLabel(): String {
     return if (text.isEmpty()) "$number" else "$number: $text"
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SessionTab(item: SessionItem, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
     val container = if (selected) {
@@ -119,13 +126,13 @@ private fun SessionTab(item: SessionItem, selected: Boolean, onClick: () -> Unit
     Text(
         text = item.tabLabel(),
         color = color,
-        style = MaterialTheme.typography.labelLarge,
+        style = if (selected) MaterialTheme.typography.labelLargeEmphasized else MaterialTheme.typography.labelLarge,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         textDecoration = if (item.running) null else TextDecoration.LineThrough,
         modifier = Modifier
             .widthIn(max = 160.dp)
-            .clip(MaterialTheme.shapes.extraLarge)
+            .clip(MaterialTheme.shapes.extraLargeIncreased)
             .background(container)
             .semantics { this.selected = selected }
             .combinedClickable(role = Role.Tab, onClick = onClick, onLongClick = onLongClick)

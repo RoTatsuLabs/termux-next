@@ -4,7 +4,11 @@ apply plugin: 'maven-publish'
 android {
     namespace "com.termux.emulator"
 
-    compileSdkVersion project.properties.compileSdkVersion.toInteger()
+    compileSdk {
+        version = release(project.properties.compileSdkVersion.toInteger()) {
+            it.minorApiLevel = project.properties.compileSdkMinorApiLevel.toInteger()
+        }
+    }
     ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
 
     defaultConfig {

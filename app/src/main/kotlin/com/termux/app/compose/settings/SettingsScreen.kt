@@ -2,9 +2,11 @@
 
 package com.termux.app.compose.settings
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,24 +16,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,11 +43,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import com.termux.R
 import com.termux.app.activities.SettingsActivity
 import com.termux.app.compose.theme.TermuxTheme
@@ -68,6 +75,9 @@ private const val TASKER = "tasker"
 private const val TASKER_DEBUGGING = "tasker/debugging"
 private const val WIDGET = "widget"
 private const val WIDGET_DEBUGGING = "widget/debugging"
+
+/** One row of a settings list. It is given its position, so it can take the right segmented shape. */
+private typealias SettingsRow = @Composable (index: Int, count: Int) -> Unit
 
 /** Sets the Termux settings screen as the content of [view]. [onFinish] closes the hosting activity. */
 fun setSettingsContent(view: ComposeView, title: String, onFinish: Runnable) {
@@ -98,6 +108,18 @@ private fun SettingsApp(rootTitle: String, onFinish: () -> Unit) {
     var route by rememberSaveable { mutableStateOf(ROOT) }
     var plugins by remember { mutableStateOf(PluginVisibility()) }
     var donateVisible by remember { mutableStateOf(false) }
+
+    // The window theme paints the status bar in its own color, so match the top bar instead.
+    val view = LocalView.current
+    val statusBarColor = MaterialTheme.colorScheme.surface
+    val darkTheme = isSystemInDarkTheme()
+    SideEffect {
+        val window = (view.context as? Activity)?.window
+        if (window != null) {
+            window.statusBarColor = statusBarColor.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
+    }
 
     // Plugin apps and the donate link are only shown when available, as before.
     LaunchedEffect(Unit) {
@@ -177,49 +199,54 @@ private fun titleFor(route: String, rootTitle: String): String = when (route) {
 private fun RootScreen(plugins: PluginVisibility, donateVisible: Boolean, onNavigate: (String) -> Unit) {
     val context = LocalContext.current
 
-    NavItem(R.string.termux_preferences_title, R.string.termux_preferences_summary) { onNavigate(TERMUX) }
-    if (plugins.termuxApi) {
-        NavItem(R.string.termux_api_preferences_title, R.string.termux_api_preferences_summary) { onNavigate(API) }
-    }
-    if (plugins.termuxFloat) {
-        NavItem(R.string.termux_float_preferences_title, R.string.termux_float_preferences_summary) { onNavigate(FLOAT) }
-    }
-    if (plugins.termuxTasker) {
-        NavItem(R.string.termux_tasker_preferences_title, R.string.termux_tasker_preferences_summary) { onNavigate(TASKER) }
-    }
-    if (plugins.termuxWidget) {
-        NavItem(R.string.termux_widget_preferences_title, R.string.termux_widget_preferences_summary) { onNavigate(WIDGET) }
-    }
-
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.about_preference_title)) },
-        modifier = Modifier.clickable { SettingsActivity.showAbout(context) }
+    SettingsList(
+        buildList<SettingsRow> {
+            add(navRow(R.string.termux_preferences_title, R.string.termux_preferences_summary) { onNavigate(TERMUX) })
+            if (plugins.termuxApi) {
+                add(navRow(R.string.termux_api_preferences_title, R.string.termux_api_preferences_summary) { onNavigate(API) })
+            }
+            if (plugins.termuxFloat) {
+                add(navRow(R.string.termux_float_preferences_title, R.string.termux_float_preferences_summary) { onNavigate(FLOAT) })
+            }
+            if (plugins.termuxTasker) {
+                add(navRow(R.string.termux_tasker_preferences_title, R.string.termux_tasker_preferences_summary) { onNavigate(TASKER) })
+            }
+            if (plugins.termuxWidget) {
+                add(navRow(R.string.termux_widget_preferences_title, R.string.termux_widget_preferences_summary) { onNavigate(WIDGET) })
+            }
+            add(navRow(R.string.about_preference_title, null) { SettingsActivity.showAbout(context) })
+            if (donateVisible) {
+                add(navRow(R.string.donate_preference_title, null) { SettingsActivity.openDonate(context) })
+            }
+        }
     )
-    if (donateVisible) {
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.donate_preference_title)) },
-            modifier = Modifier.clickable { SettingsActivity.openDonate(context) }
-        )
-    }
 }
 
 @Composable
 private fun TermuxScreen(onNavigate: (String) -> Unit) {
-    NavItem(R.string.termux_debugging_preferences_title, R.string.termux_debugging_preferences_summary) {
-        onNavigate(TERMUX_DEBUGGING)
-    }
-    NavItem(R.string.termux_terminal_io_preferences_title, R.string.termux_terminal_io_preferences_summary) {
-        onNavigate(TERMUX_IO)
-    }
-    NavItem(R.string.termux_terminal_view_preferences_title, R.string.termux_terminal_view_preferences_summary) {
-        onNavigate(TERMUX_VIEW)
-    }
+    SettingsList(
+        listOf(
+            navRow(R.string.termux_debugging_preferences_title, R.string.termux_debugging_preferences_summary) {
+                onNavigate(TERMUX_DEBUGGING)
+            },
+            navRow(R.string.termux_terminal_io_preferences_title, R.string.termux_terminal_io_preferences_summary) {
+                onNavigate(TERMUX_IO)
+            },
+            navRow(R.string.termux_terminal_view_preferences_title, R.string.termux_terminal_view_preferences_summary) {
+                onNavigate(TERMUX_VIEW)
+            }
+        )
+    )
 }
 
 /** Plugin apps only have a debugging screen. */
 @Composable
 private fun PluginScreen(onOpenDebugging: () -> Unit) {
-    NavItem(R.string.termux_debugging_preferences_title, R.string.termux_debugging_preferences_summary, onOpenDebugging)
+    SettingsList(
+        listOf(
+            navRow(R.string.termux_debugging_preferences_title, R.string.termux_debugging_preferences_summary, onOpenDebugging)
+        )
+    )
 }
 
 @Composable
@@ -228,17 +255,21 @@ private fun TerminalIoScreen() {
     val settings = remember { terminalIoSettings(context) } ?: return
 
     CategoryHeader(R.string.termux_keyboard_header)
-    SwitchItem(
-        R.string.termux_soft_keyboard_enabled_title,
-        R.string.termux_soft_keyboard_enabled_on,
-        R.string.termux_soft_keyboard_enabled_off,
-        settings.softKeyboard
-    )
-    SwitchItem(
-        R.string.termux_soft_keyboard_enabled_only_if_no_hardware_title,
-        R.string.termux_soft_keyboard_enabled_only_if_no_hardware_on,
-        R.string.termux_soft_keyboard_enabled_only_if_no_hardware_off,
-        settings.softKeyboardOnlyIfNoHardware
+    SettingsList(
+        listOf(
+            switchRow(
+                R.string.termux_soft_keyboard_enabled_title,
+                R.string.termux_soft_keyboard_enabled_on,
+                R.string.termux_soft_keyboard_enabled_off,
+                settings.softKeyboard
+            ),
+            switchRow(
+                R.string.termux_soft_keyboard_enabled_only_if_no_hardware_title,
+                R.string.termux_soft_keyboard_enabled_only_if_no_hardware_on,
+                R.string.termux_soft_keyboard_enabled_only_if_no_hardware_off,
+                settings.softKeyboardOnlyIfNoHardware
+            )
+        )
     )
 }
 
@@ -248,11 +279,15 @@ private fun TerminalViewScreen() {
     val setting = remember { terminalMarginAdjustmentSetting(context) } ?: return
 
     CategoryHeader(R.string.termux_terminal_view_view_header)
-    SwitchItem(
-        R.string.termux_terminal_view_terminal_margin_adjustment_title,
-        R.string.termux_terminal_view_terminal_margin_adjustment_on,
-        R.string.termux_terminal_view_terminal_margin_adjustment_off,
-        setting
+    SettingsList(
+        listOf(
+            switchRow(
+                R.string.termux_terminal_view_terminal_margin_adjustment_title,
+                R.string.termux_terminal_view_terminal_margin_adjustment_on,
+                R.string.termux_terminal_view_terminal_margin_adjustment_off,
+                setting
+            )
+        )
     )
 }
 
@@ -261,39 +296,40 @@ private fun DebugScreen(settings: DebugSettings?) {
     if (settings == null) return
 
     CategoryHeader(R.string.termux_logging_header)
-    LogLevelItem(settings)
-    settings.keyLogging?.let {
-        SwitchItem(
-            R.string.termux_terminal_view_key_logging_enabled_title,
-            R.string.termux_terminal_view_key_logging_enabled_on,
-            R.string.termux_terminal_view_key_logging_enabled_off,
-            it
-        )
-    }
-    settings.pluginErrorNotifications?.let {
-        SwitchItem(
-            R.string.termux_plugin_error_notifications_enabled_title,
-            R.string.termux_plugin_error_notifications_enabled_on,
-            R.string.termux_plugin_error_notifications_enabled_off,
-            it
-        )
-    }
-    settings.crashReportNotifications?.let {
-        SwitchItem(
-            R.string.termux_crash_report_notifications_enabled_title,
-            R.string.termux_crash_report_notifications_enabled_on,
-            R.string.termux_crash_report_notifications_enabled_off,
-            it
-        )
-    }
-}
-
-@Composable
-private fun NavItem(@StringRes title: Int, @StringRes summary: Int, onClick: () -> Unit) {
-    ListItem(
-        headlineContent = { Text(stringResource(title)) },
-        supportingContent = { Text(stringResource(summary)) },
-        modifier = Modifier.clickable(onClick = onClick)
+    SettingsList(
+        buildList<SettingsRow> {
+            add(logLevelRow(settings))
+            settings.keyLogging?.let {
+                add(
+                    switchRow(
+                        R.string.termux_terminal_view_key_logging_enabled_title,
+                        R.string.termux_terminal_view_key_logging_enabled_on,
+                        R.string.termux_terminal_view_key_logging_enabled_off,
+                        it
+                    )
+                )
+            }
+            settings.pluginErrorNotifications?.let {
+                add(
+                    switchRow(
+                        R.string.termux_plugin_error_notifications_enabled_title,
+                        R.string.termux_plugin_error_notifications_enabled_on,
+                        R.string.termux_plugin_error_notifications_enabled_off,
+                        it
+                    )
+                )
+            }
+            settings.crashReportNotifications?.let {
+                add(
+                    switchRow(
+                        R.string.termux_crash_report_notifications_enabled_title,
+                        R.string.termux_crash_report_notifications_enabled_on,
+                        R.string.termux_crash_report_notifications_enabled_off,
+                        it
+                    )
+                )
+            }
+        }
     )
 }
 
@@ -303,50 +339,88 @@ private fun CategoryHeader(@StringRes text: Int) {
         text = stringResource(text),
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        modifier = Modifier.padding(horizontal = 28.dp, vertical = 12.dp)
     )
 }
 
+/** Shows the rows as one group of segmented list items. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SwitchItem(
+private fun SettingsList(rows: List<SettingsRow>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
+    ) {
+        rows.forEachIndexed { index, row -> row(index, rows.size) }
+    }
+}
+
+@Composable
+private fun rowColors() = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun navRow(@StringRes title: Int, @StringRes summary: Int?, onClick: () -> Unit): SettingsRow = { index, count ->
+    val supporting: (@Composable () -> Unit)? = if (summary != null) {
+        { Text(stringResource(summary)) }
+    } else {
+        null
+    }
+
+    SegmentedListItem(
+        onClick = onClick,
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = rowColors(),
+        supportingContent = supporting
+    ) {
+        Text(stringResource(title))
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun switchRow(
     @StringRes title: Int,
     @StringRes summaryOn: Int,
     @StringRes summaryOff: Int,
     setting: BooleanSetting
-) {
+): SettingsRow = { index, count ->
     var checked by remember { mutableStateOf(setting.get()) }
 
-    ListItem(
-        headlineContent = { Text(stringResource(title)) },
-        supportingContent = { Text(stringResource(if (checked) summaryOn else summaryOff)) },
+    SegmentedListItem(
+        checked = checked,
+        onCheckedChange = {
+            checked = it
+            setting.set(it)
+        },
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = rowColors(),
         trailingContent = { Switch(checked = checked, onCheckedChange = null) },
-        modifier = Modifier.toggleable(
-            value = checked,
-            role = Role.Switch,
-            onValueChange = {
-                checked = it
-                setting.set(it)
-            }
-        )
-    )
+        supportingContent = { Text(stringResource(if (checked) summaryOn else summaryOff)) }
+    ) {
+        Text(stringResource(title))
+    }
 }
 
-@Composable
-private fun LogLevelItem(settings: DebugSettings) {
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun logLevelRow(settings: DebugSettings): SettingsRow = { index, count ->
     val context = LocalContext.current
     val levels = remember { Logger.getLogLevelsArray() }
     val labels = remember { Logger.getLogLevelLabelsArray(context, levels, true) }
     var current by remember { mutableStateOf(settings.logLevel().toString()) }
     var dialogOpen by remember { mutableStateOf(false) }
 
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.termux_log_level_title)) },
+    SegmentedListItem(
+        onClick = { dialogOpen = true },
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = rowColors(),
         supportingContent = {
-            val index = levels.indexOfFirst { it.toString() == current }
-            Text(labels.getOrNull(index)?.toString().orEmpty())
-        },
-        modifier = Modifier.clickable { dialogOpen = true }
-    )
+            val selectedIndex = levels.indexOfFirst { it.toString() == current }
+            Text(labels.getOrNull(selectedIndex)?.toString().orEmpty())
+        }
+    ) {
+        Text(stringResource(R.string.termux_log_level_title))
+    }
 
     if (dialogOpen) {
         AlertDialog(
@@ -354,7 +428,7 @@ private fun LogLevelItem(settings: DebugSettings) {
             title = { Text(stringResource(R.string.termux_log_level_title)) },
             text = {
                 Column {
-                    levels.forEachIndexed { index, value ->
+                    levels.forEachIndexed { levelIndex, value ->
                         val selected = value.toString() == current
                         Row(
                             Modifier
@@ -373,7 +447,7 @@ private fun LogLevelItem(settings: DebugSettings) {
                         ) {
                             RadioButton(selected = selected, onClick = null)
                             Spacer(Modifier.width(16.dp))
-                            Text(labels[index].toString())
+                            Text(labels[levelIndex].toString())
                         }
                     }
                 }
